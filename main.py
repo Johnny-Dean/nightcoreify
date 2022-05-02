@@ -60,19 +60,25 @@ if __name__ == '__main__':
     nightcoreify = Nightcoreify(song, music_player)
 
     dpg.create_context()
-    dpg.create_viewport()
+    dpg.create_viewport(title="Nightcoreify", width=500, height=500)
     dpg.setup_dearpygui()
+
     with dpg.file_dialog(directory_selector=False, show=False, callback=nightcoreify.file_finder_callback,
                          tag="file_dialog_id"):
         dpg.add_file_extension(".mp3")
 
-    with dpg.window(width=800, height=300):
-        dpg.add_text(f"Current Song: {songName}")
-        dpg.add_slider_float(label="Night Core Rate", id="NCR", default_value=1.25, max_value=2.0, min_value=1.0, vertical=True, callback=lambda: nightcoreify.set_speed_rate(dpg.get_value("NCR")))
-        dpg.add_button(label="Play", callback=music_player.play_song)
-        dpg.add_button(label="Stop", callback=music_player.stop_song)
-        dpg.add_button(label="Nightcore Me", callback=nightcoreify.make_nightcore)
-        dpg.add_button(label="Directory Selector", callback=lambda: dpg.show_item("file_dialog_id"))
+    with dpg.window(tag="Primary Window"):
+        with dpg.group(tag="pos"):
+            dpg.add_text(f"Current Song: {songName}")
+            dpg.add_slider_float(label="Night Core Rate", tag="NCR", default_value=1.25, max_value=2.0, min_value=1.0,
+                                 width=100, callback=lambda: nightcoreify.set_speed_rate(dpg.get_value("NCR")))
+            with dpg.group(horizontal=True):
+                dpg.add_button(label="Play", callback=music_player.play_song)
+                dpg.add_button(label="Stop", callback=music_player.stop_song)
+            dpg.add_button(label="Nightcore Me", callback=nightcoreify.make_nightcore)
+            dpg.add_button(label="Directory Selector", callback=lambda: dpg.show_item("file_dialog_id"))
+    dpg.set_item_pos("pos", [150.0, 150.0])
+    dpg.set_primary_window("Primary Window", True)
 
     dpg.show_viewport()
     dpg.start_dearpygui()
