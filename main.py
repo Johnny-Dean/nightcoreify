@@ -2,6 +2,7 @@ from pydub import AudioSegment
 from pydub.playback import play
 import dearpygui.dearpygui as dpg
 import simpleaudio as sa
+import pathlib
 from enum import Enum
 
 class PlayerState(Enum):
@@ -16,13 +17,18 @@ def set_file_path(self, sender, appdata):
     song_name = sender['file_name']
     song_object.set_song(path)
     dpg.set_value(dynamic_song_text, f"Current Song: {song_name}")
+    song_object.set_song_name(song_name)
 
 class Song():
     def __init__(self, player):
         self.original_song = None,
-        self.modded_song = None
+        self.modded_song = None,
+        self.song_name = None,
         # Will be a self subscribtion most likely
         self.player = player
+
+    def set_song_name(self, new_song_name):
+        self.song_name = new_song_name
 
     def set_song(self, new_song_path):
         new_song = AudioSegment.from_file(new_song_path)
@@ -31,14 +37,20 @@ class Song():
         self.player.state = PlayerState.STOPPED
 
     def modify_song(self, modified_song):
-        if(not self.modded_song):
+        if(self.modded_song is not None):
+            print(self.modded_song)
             self.modded_song = modified_song
             self.player.set_player_song(modified_song)
-        return
+        else:
+            print("Song has already been Nightcored")
 
     def reset_song(self):
         self.modded_song = None
         self.player.set_player_song(self.original_song)
+
+    def export_song(self):
+        file_path = str(pathlib.Path.home()) + "/Desktop/nightcore_" + self.song_name
+        self.modded_song.export(file_path, format="mp3")
 
 class Player():
     def __init__(self):
@@ -87,12 +99,10 @@ class Nightcore(SongModifier):
         nightcore = self.speed_up(song, self.speed_rate)
         return nightcore
 
-
-if __name__ == '__main__':
+def main():
     player = Player()
     song = Song(player)
     nightcore = Nightcore()
-
 
     dpg.create_context()
     dpg.create_viewport(title="Nightcoreify", width=500, height=500)
@@ -107,10 +117,12 @@ if __name__ == '__main__':
                 dpg.add_button(label="Play", callback=player.play_song)
                 dpg.add_button(label="Stop", callback=player.stop_song)
             with dpg.group(horizontal=True):
-                dpg.add_button(label="Nightcore Me", callback=lambda: song.modify_song(nightcore.make_nightcore(song.original_song)))
+                dpg.add_button(label="Nightcore Me",
+                               callback=lambda: song.modify_song(nightcore.make_nightcore(song.original_song)))
                 dpg.add_button(label="Reset", callback=song.reset_song)
-            dpg.add_button(label="Find File", callback=lambda: dpg.show_item("file_dialog_id"))
-
+            with dpg.group(horizontal=True):
+                dpg.add_button(label="Find File", callback=lambda: dpg.show_item("file_dialog_id"))
+                dpg.add_button(label="Export File", callback=song.export_song)
     with dpg.file_dialog(height=350, width=350, directory_selector=False, show=False, callback=set_file_path,
                          tag="file_dialog_id", user_data=[song, dynamic_song_text]):
         dpg.add_file_extension(".mp3")
@@ -121,3 +133,7 @@ if __name__ == '__main__':
     dpg.show_viewport()
     dpg.start_dearpygui()
     dpg.destroy_context()
+
+
+if __name__ == '__main__':
+    main()
