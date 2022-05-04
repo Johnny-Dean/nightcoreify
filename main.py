@@ -4,12 +4,17 @@ import dearpygui.dearpygui as dpg
 import simpleaudio as sa
 from enum import Enum
 
+class PlayerState(Enum):
+    PLAYING = 0,
+    STOPPED = 1
+
+
 def set_file_path(self, sender, appdata):
-    song = appdata[0]
+    song_object = appdata[0]
     dynamic_song_text = appdata[1]
     path = sender['file_path_name']
     song_name = sender['file_name']
-    song.set_song(path)
+    song_object.set_song(path)
     dpg.set_value(dynamic_song_text, f"Current Song: {song_name}")
 
 class Song():
@@ -23,21 +28,28 @@ class Song():
         new_song = AudioSegment.from_file(new_song_path)
         self.original_song = new_song
         self.player.set_player_song(new_song)
+        self.player.state = PlayerState.STOPPED
 
     def modify_song(self, modified_song):
-        self.modded_song = modified_song
-        self.player.set_player_song(modified_song)
+        if(not self.modded_song):
+            self.modded_song = modified_song
+            self.player.set_player_song(modified_song)
+        return
 
     def reset_song(self):
-        self.modded_song = self.original_song
+        self.modded_song = None
         self.player.set_player_song(self.original_song)
 
 class Player():
     def __init__(self):
         self.song = None
         self.song_stoppable_format = None
+        self.state = PlayerState.STOPPED
 
     def stop_song(self):
+        if(self.state == PlayerState.STOPPED):
+            return
+        self.state = PlayerState.STOPPED
         self.song_stoppable_format.stop()
 
     def set_player_song(self, song):
@@ -46,11 +58,15 @@ class Player():
         self.song = song
 
     def play_song(self, song):
+       if(self.state == PlayerState.PLAYING):
+           return
+
        self.song_stoppable_format = sa.play_buffer(
             self.song.raw_data,
             num_channels=self.song.channels,
             bytes_per_sample=self.song.sample_width,
             sample_rate=self.song.frame_rate)
+       self.state = PlayerState.PLAYING
        play(self.song_stoppable_format)
 
 class SongModifier:
