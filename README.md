@@ -11,6 +11,6 @@ This project was used to help me gain more familiarity with Python before using 
 # Future Features
 [] Support for common audio formats: .Wav, .Flac, etc<br>
 [] Slowed and Reverbed Slider<br>
-[] Pitch Slider
-[] Custom GUI
-[] Refactor with better practices and oop design
+[] Pitch Slider <br>
+[] Custom GUI <br>
+[] Refactor with better practices and oop design <br>
