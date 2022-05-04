@@ -2,12 +2,56 @@ from pydub import AudioSegment
 from pydub.playback import play
 import dearpygui.dearpygui as dpg
 import simpleaudio as sa
+from enum import Enum
 
+def set_file_path(self, sender, appdata):
+    song = appdata[0]
+    dynamic_song_text = appdata[1]
+    path = sender['file_path_name']
+    song_name = sender['file_name']
+    song.set_song(path)
+    dpg.set_value(dynamic_song_text, f"Current Song: {song_name}")
 
-class FileSystem:
-    def file_finder_callback(self, sender, appdata):
-        return appdata
+class Song():
+    def __init__(self, player):
+        self.original_song = None,
+        self.modded_song = None
+        # Will be a self subscribtion most likely
+        self.player = player
 
+    def set_song(self, new_song_path):
+        new_song = AudioSegment.from_file(new_song_path)
+        self.original_song = new_song
+        self.player.set_player_song(new_song)
+
+    def modify_song(self, modified_song):
+        self.modded_song = modified_song
+        self.player.set_player_song(modified_song)
+
+    def reset_song(self):
+        self.modded_song = self.original_song
+        self.player.set_player_song(self.original_song)
+
+class Player():
+    def __init__(self):
+        self.song = None
+        self.song_stoppable_format = None
+
+    def stop_song(self):
+        self.song_stoppable_format.stop()
+
+    def set_player_song(self, song):
+        if (self.song_stoppable_format != None):
+            self.song_stoppable_format.stop()
+        self.song = song
+
+    def play_song(self, song):
+       self.song_stoppable_format = sa.play_buffer(
+            self.song.raw_data,
+            num_channels=self.song.channels,
+            bytes_per_sample=self.song.sample_width,
+            sample_rate=self.song.frame_rate)
+       play(self.song_stoppable_format)
 
 class SongModifier:
     def speed_up(self, song, speed_up_rate):
@@ -16,67 +60,45 @@ class SongModifier:
         }).set_frame_rate(44100)
         return song_with_changed_frame_rate
 
-
-class Nightcoreify(SongModifier, FileSystem):
-    def __init__(self, song, player):
-        self.song = song
+class Nightcore(SongModifier):
+    def __init__(self):
         self.speed_rate = 1.25
-        self.nightcore = None
-        self.player = player
 
-    def set_speed_rate(self, speed_rate):
-        self.speed_rate = speed_rate
+    def set_speed_rate(self, new_speed_rate):
+        self.speed_rate = new_speed_rate
 
-    def make_nightcore(self):
-        self.nightcore = self.speed_up(self.song, self.speed_rate)
-        self.player.set_song(self.nightcore)
-
-
-class Player():
-    def __init__(self, song):
-        self.play_obj = None
-        self.song = song
-
-    def set_song(self, new_song):
-        self.song = new_song
-
-    def play_song(self):
-        self.play_obj = sa.play_buffer(
-            self.song.raw_data,
-            num_channels=self.song.channels,
-            bytes_per_sample=self.song.sample_width,
-            sample_rate=self.song.frame_rate
-        )
-        play(self.play_obj)
-
-    def stop_song(self):
-        self.play_obj.stop()
+    def make_nightcore(self, song):
+        nightcore = self.speed_up(song, self.speed_rate)
+        return nightcore
 
 
 if __name__ == '__main__':
-    song = AudioSegment.from_file("hkimn.mp3")
-    songName = "heaven knows"
-    music_player = Player(song)
-    nightcoreify = Nightcoreify(song, music_player)
+    player = Player()
+    song = Song(player)
+    nightcore = Nightcore()
+
 
     dpg.create_context()
     dpg.create_viewport(title="Nightcoreify", width=500, height=500)
     dpg.setup_dearpygui()
 
-    with dpg.file_dialog(directory_selector=False, show=False, callback=nightcoreify.file_finder_callback,
-                         tag="file_dialog_id"):
-        dpg.add_file_extension(".mp3")
-
     with dpg.window(tag="Primary Window"):
         with dpg.group(tag="pos"):
-            dpg.add_text(f"Current Song: {songName}")
+            dynamic_song_text = dpg.add_text(f"Current Song: None")
             dpg.add_slider_float(label="Night Core Rate", tag="NCR", default_value=1.25, max_value=2.0, min_value=1.0,
-                                 width=100, callback=lambda: nightcoreify.set_speed_rate(dpg.get_value("NCR")))
+                                 width=100, callback=lambda: nightcore.set_speed_rate(dpg.get_value("NCR")))
             with dpg.group(horizontal=True):
-                dpg.add_button(label="Play", callback=music_player.play_song)
-                dpg.add_button(label="Stop", callback=music_player.stop_song)
-            dpg.add_button(label="Nightcore Me", callback=nightcoreify.make_nightcore)
-            dpg.add_button(label="Directory Selector", callback=lambda: dpg.show_item("file_dialog_id"))
+                dpg.add_button(label="Play", callback=player.play_song)
+                dpg.add_button(label="Stop", callback=player.stop_song)
+            with dpg.group(horizontal=True):
+                dpg.add_button(label="Nightcore Me", callback=lambda: song.modify_song(nightcore.make_nightcore(song.original_song)))
+                dpg.add_button(label="Reset", callback=song.reset_song)
+            dpg.add_button(label="Find File", callback=lambda: dpg.show_item("file_dialog_id"))
+
+    with dpg.file_dialog(height=350, width=350, directory_selector=False, show=False, callback=set_file_path,
+                         tag="file_dialog_id", user_data=[song, dynamic_song_text]):
+        dpg.add_file_extension(".mp3")
+
     dpg.set_item_pos("pos", [150.0, 150.0])
     dpg.set_primary_window("Primary Window", True)
 
