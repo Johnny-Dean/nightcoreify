@@ -3,7 +3,6 @@ from pydub.playback import play
 import simpleaudio as sa
 import pathlib
 from enum import Enum
-from pedalboard import Pedalboard, Reverb
 import dearpygui.dearpygui as dpg
 
 class PlayerState(Enum):
@@ -88,7 +87,7 @@ class Player(FormatSong):
 
 class Nightcore():
     def __init__(self):
-        self.speed_rate = None
+        self.speed_up_rate = 1.00
 
     def speed_up(self, song):
         song_with_changed_frame_rate = song._spawn(song.raw_data, overrides={
@@ -97,51 +96,16 @@ class Nightcore():
         return song_with_changed_frame_rate
 
     def set_speed_rate(self, new_speed_rate):
-        self.speed_rate = new_speed_rate
+        self.speed_up_rate = new_speed_rate
 
     def make_nightcore(self, song):
-        nightcore = self.speed_up(song, self.speed_rate)
+        nightcore = self.speed_up(song)
         return nightcore
-
-class SlowedReverbed:
-    def __init__(self):
-        self.slow_rate = None
-        self.reverb = .25
-
-    def slow_down(self, song):
-        song_with_changed_frame_rate = song._spawn(song.raw_data, overrides={
-            "frame_rate": int(song.frame_rate * self.slow_down_rate)
-        }).set_frame_rate(44100)
-        return song_with_changed_frame_rate
-
-    def set_slow_rate(self, new_slow_rate):
-        self.slow_rate = new_slow_rate
-
-    def make_slowed(self, song):
-        slowed_song = self.slow_down(song)
-
-    def add_reverb(self, song):
-        # Convert song to n
-        board = Pedalboard([
-            Reverb(room_size=self.reverb)
-        ])
-        effectAdded = board(song, 44100)
-
-    def change_reverberance(self, new_reverb):
-        self.reverb = new_reverb
-
-class Sfx(SlowedReverbed, Nightcore):
-    def __init__(self):
-        super().__init__()
-        self.slow_and_reverbed = SlowedReverbed()
-        self.nightcore = Nightcore()
-
 
 def main():
     player = Player()
     song = Song(player)
-    sfx = Sfx()
-
+    nightcore = Nightcore()
 
     dpg.create_context()
     dpg.create_viewport(title="Nightcoreify", width=500, height=500)
@@ -150,17 +114,15 @@ def main():
     with dpg.window(tag="Primary Window"):
         with dpg.group(tag="pos"):
             dynamic_song_text = dpg.add_text(f"Current Song: None")
-            dpg.add_slider_float(label="Night Core Rate", tag="NCR", default_value=1.25, max_value=2.0, min_value=.05,
-                                 width=100, callback=lambda: sfx.set_speed_rate(dpg.get_value("NCR")))
+            dpg.add_slider_float(label="Night Core Rate", tag="NCR", default_value=1.00, max_value=2.0, min_value=.05,
+                                 width=100, callback=lambda: nightcore.set_speed_rate(dpg.get_value("NCR")))
             with dpg.group(horizontal=True):
                 dpg.add_button(label="Play", callback=player.play_song)
                 dpg.add_button(label="Stop", callback=player.stop_song)
             with dpg.group(horizontal=True):
                 dpg.add_button(label="Nightcore",
-                               callback=lambda: song.modify_song(sfx.make_nightcore(song.original_song)))
+                               callback=lambda: song.modify_song(nightcore.make_nightcore(song.original_song)))
                 dpg.add_button(label="Reset", callback=song.reset_song)
-            with  dpg.group(horizontal=False):
-                dpg.add_button(label="Reverb", callback=lambda: song.modify_song(sfx.add_reverb(song.original_song)))
             with dpg.group(horizontal=True):
                 dpg.add_button(label="Find File", callback=lambda: dpg.show_item("file_dialog_id"))
                 dpg.add_button(label="Export File", callback=song.export_song)
